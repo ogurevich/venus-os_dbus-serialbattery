@@ -552,11 +552,20 @@ class Battery(ABC):
         if sensor == 4:
             self.temperature_4 = round(min(max(value, -20), 100), 1)
 
+    def get_local_soc(self) -> float:
+        """
+        Returns the best locally available SoC: soc_calc (driver coulomb counter) if available,
+        otherwise the raw BMS SoC.
+
+        :return: SoC as a float
+        """
+        return self.soc_calc if self.soc_calc is not None else self.soc
+
     def get_utilized_soc(self) -> float:
         """
         Returns the SoC to use for CVL bulk/float switching decisions.
         If UTILIZE_SOC_OF_DBUS_SERVICE is configured, the external SoC is used.
-        Falls back to soc_calc (or BMS SoC) if the external source is unavailable.
+        Falls back to get_local_soc() if the external source is unavailable.
 
         :return: SoC as a float
         """
@@ -567,7 +576,7 @@ class Battery(ABC):
                     return systemDcBatterySoc
             except Exception:
                 pass
-        return self.soc_calc if self.soc_calc is not None else self.soc
+        return self.get_local_soc()
 
     def manage_charge_voltage(self) -> None:
         """

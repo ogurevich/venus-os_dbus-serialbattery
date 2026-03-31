@@ -134,6 +134,7 @@ class DbusHelper:
         self.telemetry_upload_interval: int = 60 * 60 * 3  # 3 hours
         self.telemetry_upload_last: int = 0
         self.telemetry_upload_running: bool = False
+        self._dbusBatterySocItem = None
 
         self.callback_value_reset_soc_to: int = 100
         """
@@ -857,7 +858,47 @@ class DbusHelper:
         # https://github.com/victronenergy/velib_python/commit/88a183d099ea5c60139e4d7494f9044e2dedd2d4
         self._dbusservice.register()
 
+        # Setup external SoC for CVL decisions only (UTILIZE_SOC_OF_DBUS_SERVICE)
+        if utils.UTILIZE_SOC_OF_DBUS_SERVICE:
+            logger.info("UTILIZE_SOC_OF_DBUS_SERVICE defined: " + utils.UTILIZE_SOC_OF_DBUS_SERVICE)
+            try:
+                import dbus as _dbus
+                from vedbus import VeDbusItemImport
+
+                dbus_connection = _dbus.SessionBus() if "DBUS_SESSION_BUS_ADDRESS" in os.environ else _dbus.SystemBus()
+                self._dbusBatterySocItem = VeDbusItemImport(
+                    dbus_connection,
+                    utils.UTILIZE_SOC_OF_DBUS_SERVICE,
+                    "/Soc",
+                )
+            except Exception as e:
+                logger.error(f"UTILIZE_SOC_OF_DBUS_SERVICE: error setting up VeDbusItemImport: {e}")
+
+            self.battery.get_system_dc_battery_soc = lambda: self.get_dbus_battery_soc()
+            systemDcBatterySoc = self.get_dbus_battery_soc()
+            if systemDcBatterySoc is not None:
+                logger.info(
+                    "UTILIZE_SOC_OF_DBUS_SERVICE: will use SoC from %s (current value: %.2f%%)",
+                    utils.UTILIZE_SOC_OF_DBUS_SERVICE,
+                    systemDcBatterySoc,
+                )
+            else:
+                logger.warning(
+                    "UTILIZE_SOC_OF_DBUS_SERVICE: got empty /Soc from %s, will fall back to BMS SoC",
+                    utils.UTILIZE_SOC_OF_DBUS_SERVICE,
+                )
+
         return True
+
+    def get_dbus_battery_soc(self) -> float:
+        """
+        Returns the SoC from the configured UTILIZE_SOC_OF_DBUS_SERVICE D-Bus service.
+
+        :return: SoC as a float, or None if unavailable.
+        """
+        if self._dbusBatterySocItem:
+            return self._dbusBatterySocItem.get_value()
+        return None
 
     def publish_battery(self, loop) -> None:
         """

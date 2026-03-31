@@ -428,6 +428,7 @@ class Battery(ABC):
         self.current_corrected: float = None
         self.power_calc: float = None
         self.driver_start_time: int = int(time())
+        self.get_system_dc_battery_soc = None
 
     @abstractmethod
     def test_connection(self) -> bool:
@@ -550,6 +551,23 @@ class Battery(ABC):
             self.temperature_3 = round(min(max(value, -20), 100), 1)
         if sensor == 4:
             self.temperature_4 = round(min(max(value, -20), 100), 1)
+
+    def get_utilized_soc(self) -> float:
+        """
+        Returns the SoC to use for CVL bulk/float switching decisions.
+        If UTILIZE_SOC_OF_DBUS_SERVICE is configured, the external SoC is used.
+        Falls back to soc_calc (or BMS SoC) if the external source is unavailable.
+
+        :return: SoC as a float
+        """
+        if self.get_system_dc_battery_soc:
+            try:
+                systemDcBatterySoc = self.get_system_dc_battery_soc()
+                if systemDcBatterySoc is not None:
+                    return systemDcBatterySoc
+            except Exception:
+                pass
+        return self.soc_calc if self.soc_calc is not None else self.soc
 
     def manage_charge_voltage(self) -> None:
         """
@@ -708,7 +726,7 @@ class Battery(ABC):
                 # - Cells are unbalanced
                 # - SoC reset was requested
                 elif (
-                    utils.SWITCH_TO_BULK_SOC_THRESHOLD > self.soc_calc
+                    utils.SWITCH_TO_BULK_SOC_THRESHOLD > self.get_utilized_soc()
                     or voltage_cell_diff >= utils.SWITCH_TO_BULK_CELL_VOLTAGE_DIFF
                     or self.soc_reset_requested
                 ) and not self.allow_max_voltage:
@@ -729,13 +747,13 @@ class Battery(ABC):
                     self.allow_max_voltage = False
                     self.max_voltage_start_time = None
 
-                    if self.soc_calc <= utils.SWITCH_TO_BULK_SOC_THRESHOLD:
+                    if self.get_utilized_soc() <= utils.SWITCH_TO_BULK_SOC_THRESHOLD:
                         # set error code, to show in the GUI that something is wrong
                         self.manage_error_code(8)
 
                         # write to log, that reset to float was not possible
                         logger.error(
-                            f"Could not change to float voltage. Battery SoC ({self.soc_calc}%) is lower"
+                            f"Could not change to float voltage. Battery SoC ({self.get_utilized_soc()}%) is lower"
                             + f" than SWITCH_TO_BULK_SOC_THRESHOLD ({utils.SWITCH_TO_BULK_SOC_THRESHOLD}%)."
                             + " Please reset SoC manually or lower the SWITCH_TO_BULK_SOC_THRESHOLD in the"
                             + ' "config.ini".'

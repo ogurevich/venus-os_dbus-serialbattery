@@ -304,6 +304,9 @@ EXTERNAL_SENSOR_DBUS_DEVICE: Union[str, None] = config["DEFAULT"]["EXTERNAL_SENS
 EXTERNAL_SENSOR_DBUS_PATH_CURRENT: Union[str, None] = config["DEFAULT"]["EXTERNAL_SENSOR_DBUS_PATH_CURRENT"] or None
 EXTERNAL_SENSOR_DBUS_PATH_SOC: Union[str, None] = config["DEFAULT"]["EXTERNAL_SENSOR_DBUS_PATH_SOC"] or None
 
+# --------- Utilize external SoC for CVL decisions only ---------
+UTILIZE_SOC_OF_DBUS_SERVICE: Union[str, None] = config["DEFAULT"].get("UTILIZE_SOC_OF_DBUS_SERVICE") or None
+
 
 # Common configuration checks
 check_config_issue(

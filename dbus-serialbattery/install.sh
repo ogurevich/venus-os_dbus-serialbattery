@@ -72,7 +72,7 @@ function restore_config {
 
 
 echo
-echo "*** Welcome to the dbus-serialbattery installer from mr-manuel! ***"
+echo "*** Welcome to the dbus-serialbattery installer from ogurevich! ***"
 echo
 
 
@@ -83,14 +83,14 @@ if [ -z "$1" ]; then
     # fetch version numbers for different versions
     echo -n "Fetch available version numbers..."
 
-    # mr-manuel stable
-    latest_release_mrmanuel_stable=$(curl -s https://api.github.com/repos/mr-manuel/venus-os_dbus-serialbattery/releases/latest | sed -nE 's/.*"tag_name": "([^"]+)".*/\1/p')
+    # ogurevich stable
+    latest_release_mrmanuel_stable=$(curl -s https://api.github.com/repos/ogurevich/venus-os_dbus-serialbattery/releases/latest | sed -nE 's/.*"tag_name": "([^"]+)".*/\1/p')
 
-    # mr-manuel beta
-    latest_release_mrmanuel_beta=$(curl -s https://api.github.com/repos/mr-manuel/venus-os_dbus-serialbattery/releases | sed -nE 's/.*"tag_name": "([^"]+(rc|beta))".*/\1/p' | head -n 1)
+    # ogurevich beta
+    latest_release_mrmanuel_beta=$(curl -s https://api.github.com/repos/ogurevich/venus-os_dbus-serialbattery/releases | sed -nE 's/.*"tag_name": "([^"]+(rc|beta))".*/\1/p' | head -n 1)
 
-    # mr-manuel master branch
-    latest_release_mrmanuel_nightly=$(curl -s https://raw.githubusercontent.com/mr-manuel/venus-os_dbus-serialbattery/master/dbus-serialbattery/utils.py | grep DRIVER_VERSION | awk -F'"' '{print "v" $2}')
+    # ogurevich master branch
+    latest_release_mrmanuel_nightly=$(curl -s https://raw.githubusercontent.com/ogurevich/venus-os_dbus-serialbattery/master/dbus-serialbattery/utils.py | grep DRIVER_VERSION | awk -F'"' '{print "v" $2}')
 
     # done
     echo " done."
@@ -113,7 +113,7 @@ if [ -z "$1" ]; then
 
 
     echo
-    PS3=$'\nSelect which version you want to install from mr-manuel\'s repo and enter the corresponding number: '
+    PS3=$'\nSelect which version you want to install from ogurevich\'s repo and enter the corresponding number: '
 
     # create list of versions
     version_list=(
@@ -188,9 +188,9 @@ elif [ "$1" = "--local" ]; then
 else
     echo
     echo "No valid command line argument given. Possible arguments are:"
-    echo "  --latest   Install the latest stable release from mr-manuel's repo"
-    echo "  --beta     Install the latest beta release from mr-manuel's repo"
-    echo "  --nightly  Install the latest nightly build from mr-manuel's repo"
+    echo "  --latest   Install the latest stable release from ogurevich's repo"
+    echo "  --beta     Install the latest beta release from ogurevich's repo"
+    echo "  --nightly  Install the latest nightly build from ogurevich's repo"
     echo "  --local    Install a local tar file from \"/tmp/venus-data.tar.gz\""
     echo
     exit 1
@@ -198,12 +198,12 @@ fi
 
 
 
-## stable release (mr-manuel, most up to date)
+## stable release (ogurevich, most up to date)
 if [ "$version" = "stable" ]; then
     # download stable release
-    echo "Downloading stable release from mr-manuel's repo..."
+    echo "Downloading stable release from ogurevich's repo..."
     echo ""
-    curl -s https://api.github.com/repos/mr-manuel/venus-os_dbus-serialbattery/releases/latest | sed -nE 's/.*"browser_download_url": "([^"]+)".*/\1/p' | wget -O /tmp/venus-data.tar.gz -i -
+    curl -s https://api.github.com/repos/ogurevich/venus-os_dbus-serialbattery/releases/latest | sed -nE 's/.*"browser_download_url": "([^"]+)".*/\1/p' | wget -O /tmp/venus-data.tar.gz -i -
     # check if the download was successful
     if [ $? -ne 0 ]; then
         echo "ERROR: Error during downloading the TAR file. Please try again."
@@ -212,12 +212,12 @@ if [ "$version" = "stable" ]; then
     echo ""
 fi
 
-## beta release (mr-manuel, most up to date)
+## beta release (ogurevich, most up to date)
 if [ "$version" = "beta" ]; then
     # download beta release
-    echo "Downloading beta release from mr-manuel's repo..."
+    echo "Downloading beta release from ogurevich's repo..."
     echo ""
-    curl -s https://api.github.com/repos/mr-manuel/venus-os_dbus-serialbattery/releases/tags/$latest_release_mrmanuel_beta | sed -nE 's/.*"browser_download_url": "([^"]+)".*/\1/p' | wget -O /tmp/venus-data.tar.gz -i -
+    curl -s https://api.github.com/repos/ogurevich/venus-os_dbus-serialbattery/releases/tags/$latest_release_mrmanuel_beta | sed -nE 's/.*"browser_download_url": "([^"]+)".*/\1/p' | wget -O /tmp/venus-data.tar.gz -i -
     # check if the download was successful
     if [ $? -ne 0 ]; then
         echo "ERROR: Error during downloading the TAR file. Please try again."
@@ -325,7 +325,7 @@ if [ "$version" = "nightly" ] || [ "$version" = "specific_branch" ]; then
     if [ "$version" = "specific_branch" ]; then
 
         # fetch branches from Github
-        branches=$(curl -s https://api.github.com/repos/mr-manuel/venus-os_dbus-serialbattery/branches | sed -nE 's/.*"name": "([^"]+)".*/\1/p')
+        branches=$(curl -s https://api.github.com/repos/ogurevich/venus-os_dbus-serialbattery/branches | sed -nE 's/.*"name": "([^"]+)".*/\1/p')
 
         # create a select menu
         echo
@@ -349,9 +349,9 @@ if [ "$version" = "nightly" ] || [ "$version" = "specific_branch" ]; then
     fi
 
     # download driver
-    echo "Downloading branch \"$branch\" from mr-manuel's repo..."
+    echo "Downloading branch \"$branch\" from ogurevich's repo..."
     echo ""
-    wget -O /tmp/$branch.zip https://github.com/mr-manuel/venus-os_dbus-serialbattery/archive/refs/heads/$branch.zip
+    wget -O /tmp/$branch.zip https://github.com/ogurevich/venus-os_dbus-serialbattery/archive/refs/heads/$branch.zip
     # check if the download was successful
     if [ $? -ne 0 ]; then
         echo "ERROR: Error during downloading the ZIP file. Please try again."

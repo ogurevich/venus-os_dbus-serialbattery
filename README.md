@@ -1,63 +1,75 @@
-# dbus-serialbattery
+# dbus-serialbattery (fork: ogurevich)
 
-This driver is for Venus OS devices (any GX device sold by Victron or a Raspberry Pi running the Venus OS image).
+This is a personal fork of [mr-manuel/venus-os_dbus-serialbattery](https://github.com/mr-manuel/venus-os_dbus-serialbattery), adding the `UTILIZE_SOC_OF_DBUS_SERVICE` feature on branch `ogdev`.
 
-The driver will communicate with a Battery Management System (BMS) that support serial (RS232, RS485 or TTL UART) and Bluetooth communication (see [BMS feature comparison](https://mr-manuel.github.io/venus-os_dbus-serialbattery_docs/general/features#bms-feature-comparison) for details). The data is then published to the Venus OS system (dbus). The main purpose is to act as a Battery Monitor in your GX and supply State of Charge (SoC) and other values to the inverter/charger.
-
-## History
-
-The first version of this driver was released by [Louisvdw](https://github.com/Louisvdw/dbus-serialbattery) in September 2020.
-
-In February 2023 I ([mr-manuel](https://github.com/mr-manuel)) made my first PR, since Louis did not have time anymore to contribute to this project.
-
-With the release of `v1.0.0` I became the main developer of this project. From then on, I have been maintaining the project and developing it further. I'm also solving 99% of the issues on GitHub.
-
-A big thanks to [Louisvdw](https://github.com/Louisvdw/dbus-serialbattery) for the initiation of this project.
-
-## Support this project
-
-This project takes a lot of time and effort to maintain, answering support requests, adding new features and so on.
-If you are using this driver and you are happy with it, please make a donation to support me and this project.
-
-[<img src="https://github.md0.eu/uploads/donate-button.svg" height="38">](https://www.paypal.com/donate/?hosted_button_id=3NEVZBDM5KABW)
-
-## Documentation
+For general documentation, supported BMS list, installation instructions and troubleshooting please refer to the **upstream project**:
 
 * [Introduction](https://mr-manuel.github.io/venus-os_dbus-serialbattery_docs/)
 * [Features](https://mr-manuel.github.io/venus-os_dbus-serialbattery_docs/general/features)
 * [Supported BMS](https://mr-manuel.github.io/venus-os_dbus-serialbattery_docs/general/supported-bms)
-* [How to connect and prepare the battery/BMS](https://mr-manuel.github.io/venus-os_dbus-serialbattery_docs/general/connect)
 * [How to install, update, disable, enable and uninstall](https://mr-manuel.github.io/venus-os_dbus-serialbattery_docs/general/install)
 * [How to troubleshoot](https://mr-manuel.github.io/venus-os_dbus-serialbattery_docs/troubleshoot/)
 * [FAQ](https://mr-manuel.github.io/venus-os_dbus-serialbattery_docs/faq/)
 
-### Developer Remarks
+## What this fork adds: `UTILIZE_SOC_OF_DBUS_SERVICE`
 
-To develop this project, install the requirements. This project makes use of velib_python which is pre-installed on
-Venus-OS Devices under `/opt/victronenergy/dbus-systemcalc-py/ext/velib_python`. To use the python files locally,
-`git clone` the [velib_python](https://github.com/victronenergy/velib_python) project to velib_python and add
-velib_python to the `PYTHONPATH` environment variable.
+### Problem
 
-Make sure the GitHub Actions run fine in your repository. In order to make the GitHub Actions run please select in your repository settings under `Actions` -> `General` -> `Actions permissions` the option `Allow all actions and reusable workflows`. Check also in your repository settings under `Actions` -> `General` -> `Workflow permissions` if `Read and write permissions` are selected. This will check your code for Flake8 and Black Lint errors. [Here](https://py-vscode.readthedocs.io/en/latest/files/linting.html) is a short instruction on how to set up Flake8 and Black Lint checks in VS Code. This will save you a lot of time.
+BMS SoC values drift over time. After charge/discharge cycles the internal BMS coulomb counter diverges from reality. A SmartShunt measuring at the DC busbar has a more accurate, system-wide SoC.
 
-See this checklist, if you want to [add a new BMS](https://mr-manuel.github.io/venus-os_dbus-serialbattery_docs/general/supported-bms#add-by-opening-a-pull-request)
+Without this feature the driver stays in **Bulk mode** long after the batteries are effectively full, because `SWITCH_TO_BULK_SOC_THRESHOLD` is never reached by the drifted BMS SoC.
+
+### Why not `EXTERNAL_SENSOR_DBUS_PATH_SOC`?
+
+The upstream setting `EXTERNAL_SENSOR_DBUS_PATH_SOC` replaces the BMS SoC **everywhere on D-Bus**, including the published `/Soc` path. This breaks **multi-battery + aggregator setups**:
+
+- A SmartShunt measures total system current → its SoC represents the combined system.
+- Each battery driver publishes to its own D-Bus service (`com.victronenergy.battery.ttyUSB0`, etc.).
+- The battery aggregator reads individual `/Soc` values to compute a weighted average.
+- If all drivers replace their `/Soc` with the same SmartShunt value, the aggregator receives N identical values and the weighted average becomes meaningless.
+
+### Solution
+
+`UTILIZE_SOC_OF_DBUS_SERVICE` uses the external SoC **only for the internal CVL Float/Bulk switching decision**, while the original BMS SoC is still published unchanged on D-Bus `/Soc`.
+
+```
+SmartShunt /Soc  ──►  get_utilized_soc()  ──►  manage_charge_voltage()
+                                                (Bulk/Float decision only)
+
+BMS /Soc  ──────────────────────────────────►  D-Bus /Soc  (unchanged)
+                                               (aggregator sees real BMS SoC)
+```
+
+### Configuration
+
+```ini
+; In config.ini, set the D-Bus service name of the external SoC source.
+; Example: SmartShunt or battery aggregator service.
+; Do NOT combine with EXTERNAL_SENSOR_DBUS_PATH_SOC.
+UTILIZE_SOC_OF_DBUS_SERVICE = com.victronenergy.battery.ttyS5
+```
+
+## Developer Notes
+
+This project makes use of `velib_python`, pre-installed on Venus OS under `/opt/victronenergy/dbus-systemcalc-py/ext/velib_python`. To use the Python files locally, `git clone` [velib_python](https://github.com/victronenergy/velib_python) and add it to `PYTHONPATH`.
 
 #### How it works
 
-* Each supported BMS needs to implement the abstract base class `Battery` from `battery.py`.
-* `dbus-serialbattery.py` tries to figure out the correct connected BMS by looping through all known implementations of `Battery` and executing its `test_connection()`. If this returns true, `dbus-serialbattery.py` sticks with this battery and then periodically executes `dbushelpert.publish_battery()`. `publish_battery()` executes `Battery.refresh_data()` which updates the fields of Battery. It then publishes those fields to dbus using `dbushelper.publish_dbus()`
-* The Victron Device will be "controlled" by the values published on `/Info/` - namely:
-  * `/Info/MaxChargeCurrent `
+* Each supported BMS implements the abstract base class `Battery` from `battery.py`.
+* `dbus-serialbattery.py` detects the connected BMS by calling `test_connection()` on each known implementation. On success it periodically calls `dbushelper.publish_battery()`, which runs `Battery.refresh_data()` and publishes the updated fields to dbus via `dbushelper.publish_dbus()`.
+* The Victron device is controlled by values published on `/Info/`:
+  * `/Info/MaxChargeCurrent`
   * `/Info/MaxDischargeCurrent`
   * `/Info/MaxChargeVoltage`
   * `/Info/BatteryLowVoltage`
-  * `/Info/ChargeRequest` (not implemented in dbus-serialbattery)
 
-For more details on the Victron dbus interface see [the official victron dbus documentation](https://github.com/victronenergy/venus/wiki/dbus)
+For more details see the [official Victron dbus documentation](https://github.com/victronenergy/venus/wiki/dbus).
 
-## Join the community on Discord
+## Credits
 
-https://discord.gg/YXzFB8rSgx
+Original project by [Louisvdw](https://github.com/Louisvdw/dbus-serialbattery).
+Maintained since 2023 by [mr-manuel](https://github.com/mr-manuel).
+This fork by [ogurevich](https://github.com/ogurevich).
 
 ## Help translating to your language
 

@@ -30,6 +30,10 @@ from utils import (
     validate_config_values,
 )
 
+# add ext folder to sys.path early so bundled modules (e.g. dataclasses) are available
+# for all BMS imports below (required on Venus OS builds with stripped stdlib)
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), "ext"))
+
 # import battery classes
 # TODO: import only the classes that are needed
 from bms.daly import Daly
@@ -49,9 +53,6 @@ from bms.pace import Pace
 from bms.renogy import Renogy
 from bms.seplos import Seplos
 from bms.seplosv3 import Seplosv3
-
-# add ext folder to sys.path
-sys.path.insert(1, os.path.join(os.path.dirname(__file__), "ext"))
 
 # enabled only if explicitly set in config under "BMS_TYPE"
 if "ANT" in BMS_TYPE:

@@ -290,6 +290,7 @@ class Battery(ABC):
         self.type: str = "Generic"
         self.poll_interval: int = 1000
         self.dbus_external_objects: dict = None
+        self.get_system_dc_battery_soc = None
         self.online: bool = None
         self.connection_info: str = "Initializing..."
         self.hardware_version: str = None
@@ -428,7 +429,6 @@ class Battery(ABC):
         self.current_corrected: float = None
         self.power_calc: float = None
         self.driver_start_time: int = int(time())
-        self.get_system_dc_battery_soc = None
 
     @abstractmethod
     def test_connection(self) -> bool:
@@ -968,6 +968,15 @@ class Battery(ABC):
                 soc_reset_days_ago = round((current_time - self.soc_reset_last_reached) / 60 / 60 / 24, 2)
                 soc_reset_in_days = round(utils.SOC_RESET_AFTER_DAYS - soc_reset_days_ago, 2)
 
+                external_soc_for_debug = None
+                if self.get_system_dc_battery_soc:
+                    try:
+                        external_soc_for_debug = self.get_system_dc_battery_soc()
+                    except Exception:
+                        external_soc_for_debug = None
+                uses_external_soc_for_debug = external_soc_for_debug is not None
+                utilized_soc_for_debug = external_soc_for_debug if uses_external_soc_for_debug else self.get_local_soc()
+
                 driver_start_time_dt = datetime.fromtimestamp(self.driver_start_time)
                 formatted_time = driver_start_time_dt.strftime("%Y.%m.%d %H:%M:%S")
 
@@ -986,8 +995,8 @@ class Battery(ABC):
                     + f"max_cell_voltage: {self.get_max_cell_voltage()} V"
                     + (f" • penalty_sum: {safe_number_format(penalty_sum, '{:.3f}')} V" if utils.CVL_CONTROLLER_MODE == 1 else "")
                     + "\n"
-                    + f"soc: {self.soc}% • soc_calc: {self.soc_calc}% • utilized_soc: {self.get_utilized_soc()}%"
-                    + (" (from UTILIZE_SOC_OF_DBUS_SERVICE)" if self.get_system_dc_battery_soc and self.get_system_dc_battery_soc() is not None else "")
+                    + f"soc: {self.soc}% • soc_calc: {self.soc_calc}% • utilized_soc: {utilized_soc_for_debug}%"
+                    + (" (from UTILIZE_SOC_OF_DBUS_SERVICE)" if uses_external_soc_for_debug else "")
                     + "\n"
                     + f"soh: {self.soh}%\n"
                     + f"current: {safe_number_format(self.current, '{:.2f}')}A"
@@ -1034,12 +1043,8 @@ class Battery(ABC):
                 self.charge_mode_debug_bulk = (
                     "-- switch to bulk requirements (Linear Mode) --\n"
                     + "a) SWITCH_TO_BULK_SOC_THRESHOLD: "
-                    + f"{utils.SWITCH_TO_BULK_SOC_THRESHOLD} > {self.get_utilized_soc()} :utilized_soc"
-                    + (
-                        " (from UTILIZE_SOC_OF_DBUS_SERVICE)"
-                        if self.get_system_dc_battery_soc and self.get_system_dc_battery_soc() is not None
-                        else " (=soc_calc)"
-                    )
+                    + f"{utils.SWITCH_TO_BULK_SOC_THRESHOLD} > {utilized_soc_for_debug} :utilized_soc"
+                    + (" (from UTILIZE_SOC_OF_DBUS_SERVICE)" if uses_external_soc_for_debug else " (=soc_calc)")
                     + "\n"
                     + "OR\n"
                     + f"b) voltage_cell_diff: {safe_number_format(voltage_cell_diff, '{:.3f}')} >= "

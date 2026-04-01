@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum, IntFlag
 from struct import pack, Struct, error as StructError
-from typing import ClassVar, Dict, Optional, Tuple, Type, TypeVar
+from typing import ClassVar, Dict, Optional, Type, TypeVar
 from utils import SOC_CALCULATION, logger, read_serialport_data, AUTO_RESET_SOC, UP16S_REQUIRE_DIRECT_CONNECTION
 import serial
 import time
@@ -153,9 +153,9 @@ class PackStatus(Command, default_availability_status=CommandAvailability.Status
     minimum_discharge_voltage: int
     discharge_current_limit: int
     cell_count: int
-    cell_voltages: Tuple[int, ...]
+    cell_voltages: tuple[int, ...]
     temperatures_count: int
-    temperatures: Tuple[int, ...]
+    temperatures: tuple[int, ...]
     unknown2: int
     cell_balancing_flags: int  # Bitmask of which cells are balancing, cell 1 at least significant bit.
     firmware_version: int  # Not available when master forwards from slaves

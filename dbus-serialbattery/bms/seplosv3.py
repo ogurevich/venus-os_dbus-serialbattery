@@ -6,7 +6,7 @@
 
 import math
 import struct
-from typing import List, Union
+from typing import Union
 
 import ext.minimalmodbus as minimalmodbus
 import serial
@@ -24,7 +24,7 @@ class Seplosv3(Battery):
         self.mbdev: Union[minimalmodbus.Instrument, None] = None
         if address is not None and len(address) > 0:
             self.slaveaddress: int = int(address)
-            self.slaveaddresses: List[int] = [self.slaveaddress]
+            self.slaveaddresses: list[int] = [self.slaveaddress]
         else:
             self.slaveaddress: int = 0
             self.slaveaddresses = list(range(16))

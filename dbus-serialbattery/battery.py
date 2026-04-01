@@ -986,7 +986,9 @@ class Battery(ABC):
                     + f"max_cell_voltage: {self.get_max_cell_voltage()} V"
                     + (f" • penalty_sum: {safe_number_format(penalty_sum, '{:.3f}')} V" if utils.CVL_CONTROLLER_MODE == 1 else "")
                     + "\n"
-                    + f"soc: {self.soc}% • soc_calc: {self.soc_calc}%\n"
+                    + f"soc: {self.soc}% • soc_calc: {self.soc_calc}% • utilized_soc: {self.get_utilized_soc()}%"
+                    + (" (from UTILIZE_SOC_OF_DBUS_SERVICE)" if self.get_system_dc_battery_soc and self.get_system_dc_battery_soc() is not None else "")
+                    + "\n"
                     + f"soh: {self.soh}%\n"
                     + f"current: {safe_number_format(self.current, '{:.2f}')}A"
                     + (f" • current_calc: {safe_number_format(self.current_calc, '{:.2f}')} A\n" if self.current_calc is not None else "\n")
@@ -1032,7 +1034,13 @@ class Battery(ABC):
                 self.charge_mode_debug_bulk = (
                     "-- switch to bulk requirements (Linear Mode) --\n"
                     + "a) SWITCH_TO_BULK_SOC_THRESHOLD: "
-                    + f"{utils.SWITCH_TO_BULK_SOC_THRESHOLD} > {self.soc_calc} :soc_calc\n"
+                    + f"{utils.SWITCH_TO_BULK_SOC_THRESHOLD} > {self.get_utilized_soc()} :utilized_soc"
+                    + (
+                        " (from UTILIZE_SOC_OF_DBUS_SERVICE)"
+                        if self.get_system_dc_battery_soc and self.get_system_dc_battery_soc() is not None
+                        else " (=soc_calc)"
+                    )
+                    + "\n"
                     + "OR\n"
                     + f"b) voltage_cell_diff: {safe_number_format(voltage_cell_diff, '{:.3f}')} >= "
                     + f"{safe_number_format(utils.SWITCH_TO_BULK_CELL_VOLTAGE_DIFF, '{:.3f}')} "

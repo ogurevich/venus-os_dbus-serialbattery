@@ -757,11 +757,11 @@ class Battery(ABC):
                     self.max_voltage_start_time = None
 
                     if self.get_utilized_soc() <= utils.SWITCH_TO_BULK_SOC_THRESHOLD:
-                        # set error code, to show in the GUI that something is wrong
-                        self.manage_error_code(8)
-
-                        # write to log, that reset to float was not possible
-                        logger.error(
+                        # log a warning if SoC is below threshold when switching to float
+                        # this is expected behaviour with PV systems where the SoC source (e.g. SmartShunt)
+                        # may report a lower SoC than SWITCH_TO_BULK_SOC_THRESHOLD at end-of-charge;
+                        # the driver will immediately return to bulk and continue charging, which is correct
+                        logger.warning(
                             f"Could not change to float voltage. Battery SoC ({self.get_utilized_soc()}%) is lower"
                             + f" than SWITCH_TO_BULK_SOC_THRESHOLD ({utils.SWITCH_TO_BULK_SOC_THRESHOLD}%)."
                             + " Please reset SoC manually or lower the SWITCH_TO_BULK_SOC_THRESHOLD in the"

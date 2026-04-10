@@ -15,7 +15,7 @@ import time
 
 
 # CONSTANTS
-DRIVER_VERSION: str = "2.1.20260401ogdev"
+DRIVER_VERSION: str = "2.1.20260410ogdev"
 """
 current version of the driver
 """
